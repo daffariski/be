@@ -1,0 +1,19 @@
+<?php
+
+namespace App\Blueprints;
+
+use App\Helpers\LightGenerationHelper;
+
+class {{ name }}
+{
+    use LightGenerationHelper;
+    /**
+     * generation the application's blueprint.
+     */
+    public function run(): void
+    {
+        $this->blueprint([
+            // write blueprint
+        ]);
+    }
+}
