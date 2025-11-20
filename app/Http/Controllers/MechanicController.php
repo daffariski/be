@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Helpers\LightControllerHelper;
 use App\Models\Mechanic;
 use App\Models\Service;
 use Illuminate\Http\Request;
@@ -11,13 +10,26 @@ use Illuminate\Support\Facades\Response;
 
 class MechanicController extends Controller
 {
-    use LightControllerHelper;
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index($request)
     {
-        //
+        // ? Initial params
+        $params = $this->getParams($request);
+
+        // ? Begin
+        $query = Mechanic::query()
+            ->search($params["search"] ?? '')
+            ->filter(json_decode($params["filter"]))
+            ->orderBy($params["sortBy"], $params["sortDirection"])
+            ->selectableColumns()
+            ->paginate($params["paginate"]);
+
+        $data = $query->all();
+
+        // ? Response
+        $this->responseData($data);
     }
 
     /**
@@ -86,44 +98,43 @@ class MechanicController extends Controller
         return Response::json($mechanics);
     }
 
-  public function assignments(Request $request)
-{
-    try {
-        $mechanic = $request->user()->mechanic;
+    public function assignments(Request $request)
+    {
+        try {
+            $mechanic = $request->user()->mechanic;
 
-        if (!$mechanic) {
-            return response()->json(['message' => 'Mechanic profile not found.'], 404);
+            if (!$mechanic) {
+                return response()->json(['message' => 'Mechanic profile not found.'], 404);
+            }
+
+            $params = $this->getParams($request);
+
+            $services = Service::from('services as s')
+                ->leftJoin('queues as q', 's.queue_id', '=', 'q.id')
+                ->where('s.mechanic_id', $mechanic->id)
+                ->select('s.*', 'q.queue_number')
+                ->when($params['search'], function ($qBuilder, $search) {
+                    $qBuilder->where('s.description', 'like', "%{$search}%");
+                })
+                ->orderByRaw('COALESCE(q.queue_number, 99999) ASC')
+                ->paginate($params['paginate']);
+
+            // ✅ Safely load relationships on the underlying collection
+            $servicesCollection = $services->getCollection();
+            $servicesCollection->load(['queue', 'vehicle', 'customer.user']);
+            $services->setCollection($servicesCollection);
+
+            return $this->responseData($services->items(), $services->total());
+        } catch (\Throwable $th) {
+            // ✅ Traditional error response for debugging
+            return response()->json([
+                'message' => 'Error: Server Side Having Problem!',
+                'error' => $th->getMessage(),
+                'trace' => $th->getTraceAsString(),
+                'section' => 'Mechanic Assignments',
+            ], 500);
         }
-
-        $params = $this->getParams($request);
-
-        $services = Service::from('services as s')
-            ->leftJoin('queues as q', 's.queue_id', '=', 'q.id')
-            ->where('s.mechanic_id', $mechanic->id)
-            ->select('s.*', 'q.queue_number')
-            ->when($params['search'], function ($qBuilder, $search) {
-                $qBuilder->where('s.description', 'like', "%{$search}%");
-            })
-            ->orderByRaw('COALESCE(q.queue_number, 99999) ASC')
-            ->paginate($params['paginate']);
-
-        // ✅ Safely load relationships on the underlying collection
-        $servicesCollection = $services->getCollection();
-        $servicesCollection->load(['queue', 'vehicle', 'customer.user']);
-        $services->setCollection($servicesCollection);
-
-        return $this->responseData($services->items(), $services->total());
-
-    } catch (\Throwable $th) {
-        // ✅ Traditional error response for debugging
-        return response()->json([
-            'message' => 'Error: Server Side Having Problem!',
-            'error' => $th->getMessage(),
-            'trace' => $th->getTraceAsString(),
-            'section' => 'Mechanic Assignments',
-        ], 500);
     }
-}
 
 
 

@@ -25,6 +25,10 @@ return new class extends Migration
             $table->timestamp('approved_at')->nullable();
             $table->timestamps();
         });
+
+        Schema::table('queues', function (Blueprint $table) {
+            $table->foreignId('service_id')->nullable()->constrained('services')->cascadeOnDelete();
+        });
     }
 
     /**
@@ -33,5 +37,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('services');
+        Schema::table('queues', function (Blueprint $table) {
+            $table->dropColumn('service_id');
+        });
     }
 };

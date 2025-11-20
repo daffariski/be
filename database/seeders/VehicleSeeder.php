@@ -18,12 +18,12 @@ class VehicleSeeder extends Seeder
 
         for ($i = 0; $i < 5; $i++) {
             Vehicle::create([
-                'user_id' => $users->random()->id ?? null,
+                'user_id'      => $users->random()->id ?? null,
                 'plate_number' => fake()->unique()->regexify('[A-Z]{3}[0-9]{3}[A-Z]{2}'),
-                'brand' => fake()->randomElement(['Yamaha', 'Honda', 'Suzuki']),
-                'series' => fake()->word(),
-                'year' => fake()->numberBetween(2000, 2023),
-                'color' => fake()->colorName(),
+                'brand'        => fake()->randomElement(['Yamaha', 'Honda', 'Suzuki']),
+                'series'       => fake()->word(),
+                'year'         => fake()->numberBetween(2000, 2023),
+                'color'        => fake()->colorName(),
             ]);
         }
     }

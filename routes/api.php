@@ -34,27 +34,38 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
     Route::get('/me', [AuthController::class, 'user']);
 
-    Route::middleware('role:admin')->group(function () {
-        // User Management
-        Route::apiResource('users', UserController::class);
+    // ----------------------------
+    // Admin Routes
+    // ----------------------------
+    Route::middleware('role:admin')->prefix('admin')->group(function () {
         Route::post('users/{user}/assign-admin', [UserController::class, 'assignAdmin']);
         Route::post('users/{user}/assign-mechanic', [UserController::class, 'assignMechanic']);
 
-        // Customer & Product Management
-        Route::apiResource('customers', CustomerController::class);
-        Route::apiResource('products', ProductController::class);
-        Route::apiResource('vehicles', VehicleController::class);
+        Route::prefix('users')->group(function () {
+            Route::post('/{id}', [UserController::class, 'update']);
+        });
+        Route::prefix('products')->group(function () {
+            Route::post('/{id}', [ProductController::class, 'update']);
+        });
+        Route::prefix('mechanics')->group(function () {
+            Route::post('/{id}', [MechanicController::class, 'update']);
+        });
+
+        Route::apiResource('users', UserController::class)->except(['update']);
+        Route::apiResource('mechanics', MechanicController::class)->except(['update']);
+        Route::apiResource('customers', CustomerController::class)->except(['update']);
+        Route::apiResource('products', ProductController::class)->except(['update']);
+        Route::apiResource('vehicles', VehicleController::class)->except(['update']);
 
         // Service Management
-        Route::apiResource('services', ServiceController::class);
-        Route::patch('services/{service}/status', [ServiceController::class, 'changeStatus']);
-        Route::patch('/services/{service}/approve', [ServiceController::class, 'approve']);
-        Route::patch('/services/{service}/cancel', [ServiceController::class, 'cancel']);
+        Route::apiResource('services', ServiceController::class)->except(['update']);
+        Route::post('services/{service}/status', [ServiceController::class, 'changeStatus']);
+        Route::post('/services/{service}/approve', [ServiceController::class, 'approve']);
+        Route::post('/services/{service}/cancel', [ServiceController::class, 'cancel']);
 
         // 🆕 Queue Management
         Route::apiResource('queues', QueueController::class)->only(['index', 'show']);
     });
-
 
     // ----------------------------
     // Customer Routes
@@ -62,7 +73,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('customer')->middleware('role:customer')->group(function () {
         // Vehicle
         Route::get('vehicles', [VehicleController::class, 'customerVehicles']);
-        Route::patch('vehicles/{vehicle}', [VehicleController::class, 'updateCustomerVehicle']);
+        Route::post('vehicles/{vehicle}', [VehicleController::class, 'updateCustomerVehicle']);
 
         // Service
         Route::get('services', [ServiceController::class, 'customerServices']);
@@ -72,14 +83,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('queues', [CustomerQueueController::class, 'index']); // customer’s active queues
     });
 
-     // ----------------------------
+    // ----------------------------
     // Mechanic Routes
     // ----------------------------
-    Route::middleware(['auth:sanctum'])->prefix('mechanic')->group(function () {
-    Route::get('/assignments', [MechanicController::class, 'assignments']);
-    Route::get('/queues', [MechanicController::class, 'queues']);
-    Route::patch('/queues/{id}', [MechanicController::class, 'updateQueue']);
-});
+    Route::prefix('mechanic')->group(function () {
+        Route::get('/assignments', [MechanicController::class, 'assignments']);
+        Route::get('/queues', [MechanicController::class, 'queues']);
+        Route::post('/queues/{id}', [MechanicController::class, 'updateQueue']);
+    });
 
     // ----------------------------
     // General Routes

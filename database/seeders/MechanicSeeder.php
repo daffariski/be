@@ -13,11 +13,11 @@ class MechanicSeeder extends Seeder
      */
     public function run(): void
     {
-        $mechanicUser = User::where('email', 'mechanic@example.com')->first();
+        $mechanicUsers = User::where('role', 'mechanic')->get();
 
-        if ($mechanicUser) {
+        foreach ($mechanicUsers as $mechanicUser) {
             Mechanic::create([
-                'user_id' => $mechanicUser->id,
+                'user_id'        => $mechanicUser->id,
                 'specialization' => 'Engine Repair',
             ]);
         }

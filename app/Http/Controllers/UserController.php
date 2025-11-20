@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use App\Helpers\LightControllerHelper;
+use Symfony\Component\Translation\Exception\NotFoundResourceException;
 
 class UserController extends Controller
 {
@@ -24,19 +25,26 @@ class UserController extends Controller
 
         // ? Begin
         $query = User::query()
-            ->where(function ($query) {
-                $query->whereHas('admin')
-                    ->orWhereHas('mechanic');
-            })
-            ->with(['mechanic:id,user_id', 'admin:id,user_id'])
-            ->search($params["search"] || '')
+            // ->where(function ($query) {
+            //     $query->whereHas('admin')
+            //         ->orWhereHas('mechanic');
+            // })
+            ->with(['mechanic:id,user_id', 'admin:id,user_id', 'customer'])
+            ->search($params["search"] ?? '')
             ->filter(json_decode($params["filter"]))
             ->orderBy($params["sortBy"], $params["sortDirection"])
             ->selectableColumns()
             ->paginate($params["paginate"]);
 
+        $data = $query->all();
         // ? Response
-        $this->responseData($query->all(), $query->total());
+        // $this->responseData($query->all());
+        return response()->json([
+            'message'   => (count($data) ? 'Success' : 'Empty data'),
+            'data'      => $data ?? [],
+            'total_row' => null,
+            'columns'   => null,
+        ], count($data) ? 200 : 206);
     }
 
     // =============================================>
@@ -46,10 +54,12 @@ class UserController extends Controller
     {
         // ? Validate request
         $this->validation($request->all(), [
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
+            'name'     => 'required|string|max:255',
+            'email'    => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
-            'role' => 'required|in:admin,mechanic', // Added role validation
+            'phone'    => 'sometimes|required_if:role,customer|numeric',
+            'address'  => 'sometimes|required_if:role,customer|string|max:500',
+            'role'     => 'required|in:admin,mechanic,customer',                   // Added role validation
         ]);
 
         // ? Initial
@@ -57,17 +67,37 @@ class UserController extends Controller
         $user = new User();
 
         // ? Dump data
-        $user->fill($request->only(['name', 'email']));
+        // $user->fill($request->only(['name', 'email']));
+        //if phone and address exist, except it
+        // $exceptedInputs = ['password', 'phone', 'address'];
+        $user->fill($request->except(['password', 'phone', 'address']));
         $user->password = Hash::make($request->password);
 
         // ? Executing
         try {
             $user->save();
-            if ($request->role === 'admin') {
-                Admin::create(['user_id' => $user->id]);
-            } elseif ($request->role === 'mechanic') {
-                Mechanic::create(['user_id' => $user->id]);
+            switch ($request->role) {
+                case 'customer':
+                    $user->customer()->create([
+                        'phone'   => $request->phone,
+                        'address' => $request->address,
+                    ]);
+                    break;
+                case 'mechanic':
+                    Mechanic::create(['user_id' => $user->id]);
+                    break;
+                case 'admin':
+                    Admin::create(['user_id' => $user->id]);
+                    break;
+                default:
+                    throw new NotFoundResourceException('Invalid role specified');
+                    break;
             }
+            // if ($request->role === 'admin') {
+            //     Admin::create(['user_id' => $user->id]);
+            // } elseif ($request->role === 'mechanic') {
+            //     Mechanic::create(['user_id' => $user->id]);
+            // }
         } catch (\Throwable $th) {
             DB::rollBack();
             $this->responseError($th, 'Create User');
@@ -101,10 +131,12 @@ class UserController extends Controller
         $user = User::findOrFail($id);
 
         $this->validation($request->all(), [
-            'name' => 'sometimes|required|string|max:255',
-            'email' => 'sometimes|required|string|email|max:255|unique:users,email,' . $id,
+            'name'     => 'sometimes|required|string|max:255',
+            'email'    => 'sometimes|required|string|email|max:255|unique:users,email,' . $id,
             'password' => 'sometimes|required|string|min:8',
-            'role' => 'sometimes|required|in:admin,mechanic,customer',
+            'phone'    => 'sometimes|required_if:role,customer|numeric',
+            'address'  => 'sometimes|required_if:role,customer|string|max:500',
+            'role'     => 'sometimes|required|in:admin,mechanic,customer',
         ]);
 
         $user->fill($request->only(['name', 'email', 'role']));
@@ -115,6 +147,22 @@ class UserController extends Controller
 
         try {
             $user->save();
+
+            if ($user->role === 'customer') {
+                // Update or create customer details
+                $user->customer()->updateOrCreate(
+                    ['user_id' => $user->id],
+                    [
+                        'phone'   => $request->phone,
+                        'address' => $request->address,
+                    ]
+                );
+            } else {
+                // If role changed from customer to another, delete customer details
+                if ($user->customer) {
+                    $user->customer->delete();
+                }
+            }
             DB::commit();
 
             return $this->responseSaved($user->toArray());

@@ -5,11 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use App\Helpers\LightControllerHelper;
+// use App\Helpers\LightControllerHelper;
 
 class ProductController extends Controller
 {
-    use LightControllerHelper;
+    // use LightControllerHelper;
 
     // ========================================>
     // ## Display a listing of the resource.
@@ -27,8 +27,21 @@ class ProductController extends Controller
             ->selectableColumns()
             ->paginate($params["paginate"]);
 
+        $data = $query->all();
+
+        // dd($query->all());
+
+        // return response()->json('test');
+
+        return response()->json([
+            'message'   => (count($data) ? 'Success' : 'Empty data'),
+            'data'      => $data ?? [],
+            'total_row' => null,
+            'columns'   => null,
+        ], count($data) ? 200 : 206);
+
         // ? Response
-        $this->responseData($query->all(), $query->total());
+        // $this->responseData($query->all());
     }
 
     // =============================================>
@@ -38,11 +51,11 @@ class ProductController extends Controller
     {
         // ? Validate request
         $this->validation($request->all(), [
-            'name' => 'required|string|max:255',
+            'name'        => 'required|string|max:255',
             'description' => 'nullable|string',
-            'price' => 'required|numeric|min:0',
-            'stock' => 'required|integer|min:0',
-            'uom' => 'nullable|string|max:50',
+            'price'       => 'required|numeric|min:0',
+            'stock'       => 'required|integer|min:0',
+            'uom'         => 'nullable|string|max:50',
         ]);
 
         // ? Initial
@@ -87,24 +100,27 @@ class ProductController extends Controller
         // ? Initial
         DB::beginTransaction();
         $product = Product::findOrFail($id);
+        //
+        // return response()->json($request);
+        // dd($request->all());
 
         // ? Validate request
         $this->validation($request->all(), [
-            'name' => 'sometimes|required|string|max:255',
-            'description' => 'nullable|string',
-            'price' => 'sometimes|required|numeric|min:0',
-            'stock' => 'sometimes|required|integer|min:0',
-            'uom' => 'nullable|string|max:50',
+            'name'   => 'sometimes|required|string|max:255',
+            'series' => 'nullable|string',
+            'price'  => 'sometimes|required|numeric|min:0',
+            'stock'  => 'sometimes|required|integer|min:0',
+            'uom'    => 'nullable|string|max:50',
         ]);
 
         // ? Dump data
-        $product->fill($request->all());
+        $product->fill($request->except(['id']));
 
         // ? Executing
         try {
             $product->save();
             DB::commit();
-            
+
             return $this->responseSaved($product->toArray());
         } catch (\Throwable $th) {
             DB::rollBack();

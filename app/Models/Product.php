@@ -12,7 +12,7 @@ class Product extends Model
 
     protected $fillable = ['name', 'series', 'price', 'stock', 'uom'];
     protected $selectable = ['id', 'series','name', 'price', 'stock', 'uom'];
-    protected $searchable =['name', 'series',];
+    protected $searchable =['name', 'series'];
     protected $hidden = [];
 
     public function serviceDetails()

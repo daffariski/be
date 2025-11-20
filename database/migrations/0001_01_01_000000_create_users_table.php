@@ -19,8 +19,10 @@ return new class extends Migration
             $table->string('google_id')->nullable();
             $table->enum('role', ['customer', 'mechanic', 'admin'])->default('customer');
             $table->string('password');
+            // $table->boolean('is_active')->default(true);
             $table->rememberToken();
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {

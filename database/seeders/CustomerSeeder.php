@@ -13,12 +13,12 @@ class CustomerSeeder extends Seeder
      */
     public function run(): void
     {
-        $customerUser = User::where('email', 'customer@example.com')->first();
+        $customerUsers = User::where('role', 'customer')->get();
 
-        if ($customerUser) {
+        foreach ($customerUsers as $customerUser) {
             Customer::create([
                 'user_id' => $customerUser->id,
-                'phone' => '081234567890',
+                'phone'   => '081234567890',
                 'address' => 'Jl. Contoh No. 123',
             ]);
         }

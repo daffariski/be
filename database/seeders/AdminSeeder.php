@@ -13,11 +13,11 @@ class AdminSeeder extends Seeder
      */
     public function run(): void
     {
-        $adminUser = User::where('email', 'admin@example.com')->first();
+        $admins = User::where('role', 'admin')->get();
 
-        if ($adminUser) {
+        foreach ($admins as $admin) {
             Admin::create([
-                'user_id' => $adminUser->id,
+                'user_id' => $admin->id,
             ]);
         }
     }
