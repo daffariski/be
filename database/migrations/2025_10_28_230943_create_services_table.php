@@ -17,17 +17,26 @@ return new class extends Migration
             $table->string('customer_name')->nullable();
             $table->foreignId('mechanic_id')->nullable()->constrained('mechanics')->nullOnDelete();
             $table->foreignId('admin_id')->nullable()->constrained('admins')->nullOnDelete();
-            $table->foreignId('queue_id')->nullable()->constrained('queues')->nullOnDelete();
-            $table->foreignId('vehicle_id')->nullable()->constrained()->onDelete('set null');
+            $table->foreignId('vehicle_id')->constrained()->restrictOnDelete();
             $table->text('description')->nullable();
-            $table->enum('status', ['waiting', 'process', 'done', 'cancelled'])->default('waiting');
-            $table->dateTime('preferred_datetime')->nullable();
-            $table->timestamp('approved_at')->nullable();
-            $table->timestamps();
-        });
 
-        Schema::table('queues', function (Blueprint $table) {
-            $table->foreignId('service_id')->nullable()->constrained('services')->cascadeOnDelete();
+            // Queue management fields
+            $table->date('queue_date')->nullable()->comment('Which day this service is queued for');
+            $table->integer('queue_priority')->default(999)->comment('Manual priority override (lower = higher priority)');
+            $table->timestamp('queued_at')->nullable()->comment('When service was added to queue (never changes after set)');
+
+            // Status and workflow
+            $table->enum('status', ['waiting', 'process', 'done', 'cancelled'])->default('waiting');
+
+            // Payment fields (moved from separate table for simplicity)
+            $table->unsignedBigInteger('price')->default(0)->comment('Total service cost');
+            $table->string('payment_method')->nullable()->comment('cash, qris, transfer, etc');
+            $table->string('payment_proof')->nullable()->comment('File path for payment proof (cashless)');
+            $table->enum('payment_status', ['unpaid', 'paid'])->default('unpaid');
+
+            $table->timestamp('started_at')->nullable()->comment('When mechanic started working on this service');
+            $table->timestamp('finished_at')->nullable()->comment('When mechanic finished working on this service');
+            $table->timestamps();
         });
     }
 
@@ -37,8 +46,5 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('services');
-        Schema::table('queues', function (Blueprint $table) {
-            $table->dropColumn('service_id');
-        });
     }
 };

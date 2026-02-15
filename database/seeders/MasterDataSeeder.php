@@ -17,6 +17,7 @@ class MasterDataSeeder extends Seeder
             CustomerSeeder::class,
             MechanicSeeder::class,
             ProductSeeder::class,
+            BrandSeeder::class,
         ]);
     }
 }

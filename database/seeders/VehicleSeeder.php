@@ -16,12 +16,19 @@ class VehicleSeeder extends Seeder
     {
         $users = User::all();
 
+        $series = [
+            'Honda'  => ['Beat', 'Vario', 'Scoopy', 'Genio', 'PCX'],
+            'Suzuki' => ['Nex', 'Satria', 'Smash', 'Shogun', 'Bravo'],
+            'Yamaha' => ['Mio', 'Aerox', 'Fazzio', 'Vixion', 'MX King'],
+        ];
+
         for ($i = 0; $i < 5; $i++) {
+            $brand = fake()->randomElement(['Yamaha', 'Honda', 'Suzuki']);
             Vehicle::create([
                 'user_id'      => $users->random()->id ?? null,
                 'plate_number' => fake()->unique()->regexify('[A-Z]{3}[0-9]{3}[A-Z]{2}'),
-                'brand'        => fake()->randomElement(['Yamaha', 'Honda', 'Suzuki']),
-                'series'       => fake()->word(),
+                'brand'        => $brand,
+                'series'       => fake()->randomElement($series[$brand]),
                 'year'         => fake()->numberBetween(2000, 2023),
                 'color'        => fake()->colorName(),
             ]);

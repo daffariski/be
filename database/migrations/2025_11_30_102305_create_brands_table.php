@@ -11,11 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('queues', function (Blueprint $table) {
+        Schema::create('brands', function (Blueprint $table) {
             $table->id();
-            $table->integer('queue_number');
-            $table->date('date');
-            $table->enum('status', ['waiting', 'on_progress', 'done'])->default('waiting');
+            $table->string('name');
             $table->timestamps();
         });
     }
@@ -25,6 +23,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('queues');
+        Schema::dropIfExists('brands');
     }
 };

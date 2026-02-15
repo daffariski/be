@@ -12,8 +12,11 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            MasterDataSeeder::class,
-            VehicleSeeder::class,
+            MasterDataSeeder::class,    // Users, Admins, Customers, Mechanics, Products, Brands
+            VehicleSeeder::class,       // Vehicles
+            // ServiceSeeder::class,       // Services (done, waiting, process)
+            // ServiceQueueSeeder::class,  // Queue numbers for waiting services
+            // ServiceDetailSeeder::class, // Products/parts used in completed services
         ]);
     }
 }

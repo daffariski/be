@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Vehicle extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'user_id',
@@ -40,14 +41,21 @@ class Vehicle extends Model
 
     public function queue()
     {
-        return $this->hasOne(Queue::class);
+        return $this->hasMany(ServiceQueue::class);
     }
 
     // Add search scope - only searches plate_number
     public function scopeSearch($query, $search)
     {
         if ($search) {
-            return $query->where('plate_number', 'like', '%' . $search . '%');
+            return $query->where('plate_number', 'like', '%' . $search . '%')
+                ->orWhere('brand', 'like', '%' . $search . '%')
+                ->orWhere('series', 'like', '%' . $search . '%')
+                ->orWhere('color', 'like', '%' . $search . '%')
+                ->orWhere('year', 'like', '%' . $search . '%')
+                ->orWhereHas('user', function ($query) use ($search) {
+                    $query->where('name', 'like', '%' . $search . '%');
+                });
         }
         return $query;
     }

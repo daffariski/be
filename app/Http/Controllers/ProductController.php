@@ -5,11 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-// use App\Helpers\LightControllerHelper;
+use App\Helpers\LightControllerHelper;
 
 class ProductController extends Controller
 {
-    // use LightControllerHelper;
+    use LightControllerHelper;
 
     // ========================================>
     // ## Display a listing of the resource.
@@ -27,21 +27,10 @@ class ProductController extends Controller
             ->selectableColumns()
             ->paginate($params["paginate"]);
 
-        $data = $query->all();
-
-        // dd($query->all());
-
-        // return response()->json('test');
-
-        return response()->json([
-            'message'   => (count($data) ? 'Success' : 'Empty data'),
-            'data'      => $data ?? [],
-            'total_row' => null,
-            'columns'   => null,
-        ], count($data) ? 200 : 206);
+        $data = $query->items();
 
         // ? Response
-        // $this->responseData($query->all());
+        return $this->responseData($data, $query->total());
     }
 
     // =============================================>
@@ -75,7 +64,7 @@ class ProductController extends Controller
 
         // ? final
         DB::commit();
-        $this->responseSaved($product->toArray());
+        return $this->responseSaved($product->toArray());
     }
 
     // ============================================>
@@ -89,7 +78,7 @@ class ProductController extends Controller
             ->findOrFail($id);
 
         // ? Response
-        $this->responseData($product->toArray());
+        return $this->responseData([$product->toArray()]);
     }
 
     // ============================================>
@@ -142,10 +131,10 @@ class ProductController extends Controller
         try {
             $product->delete();
         } catch (\Throwable $th) {
-            $this->responseError($th, 'Delete Product');
+            return $this->responseError($th, 'Delete Product');
         }
 
         // ? final
-        $this->responseData(['message' => 'Product deleted successfully']);
+        return $this->responseData([], null, 'Product deleted successfully');
     }
 }

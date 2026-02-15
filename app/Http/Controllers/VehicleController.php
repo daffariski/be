@@ -4,12 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Vehicle;
 use Illuminate\Http\Request;
-use App\Helpers\LightControllerHelper;
 use Illuminate\Support\Facades\DB;
 
 class VehicleController extends Controller
 {
-    use LightControllerHelper;
 
     /**
      * Display a listing of the resource.
@@ -20,15 +18,23 @@ class VehicleController extends Controller
         $params = $this->getParams($request);
 
         // ? Begin
-        $query = Vehicle::query()
+        $query = Vehicle::query()->with('user:id,name')
             ->search($params["search"] ?? '')
             ->filter(json_decode($params["filter"]))
             ->orderBy($params["sortBy"], $params["sortDirection"])
             ->selectableColumns()
             ->paginate($params["paginate"]);
 
+        $data = $query->all();
+
         // ? Response
-        $this->responseData($query->all(), $query->total());
+        // $this->responseData($query->all(), $query->total());
+        return response()->json([
+            'message'   => (count($data) ? 'Success' : 'Empty data'),
+            'data'      => $data ?? [],
+            'total_row' => null,
+            'columns'   => null,
+        ], count($data) ? 200 : 206);
     }
 
     /**
@@ -39,11 +45,11 @@ class VehicleController extends Controller
         // ? Validate request
         $this->validation($request->all(), [
             'plate_number' => 'required|string|max:255|unique:vehicles',
-            'brand' => 'required|string|max:255',
-            'series' => 'required|string|max:255',
-            'year' => 'required|integer|min:1900|max:' . (date('Y') + 1),
-            'color' => 'required|string|max:255',
-            'user_id' => 'nullable|exists:users,id',
+            'brand'        => 'required|string|max:255',
+            'series'       => 'required|string|max:255',
+            'year'         => 'required|integer|min:1900|max:' . (date('Y') + 1),
+            'color'        => 'required|string|max:255',
+            'user_id'      => 'nullable|exists:users,id',
         ]);
 
         // ? Initial
@@ -83,11 +89,11 @@ class VehicleController extends Controller
         // ? Validate request
         $this->validation($request->all(), [
             'plate_number' => 'sometimes|required|string|max:255|unique:vehicles,plate_number,' . $vehicle->id,
-            'brand' => 'sometimes|required|string|max:255',
-            'series' => 'sometimes|required|string|max:255',
-            'year' => 'sometimes|required|integer|min:1900|max:' . (date('Y') + 1),
-            'color' => 'sometimes|required|string|max:255',
-            'user_id' => 'nullable|exists:users,id',
+            'brand'        => 'sometimes|required|string|max:255',
+            'series'       => 'sometimes|required|string|max:255',
+            'year'         => 'sometimes|required|integer|min:1900|max:' . (date('Y') + 1),
+            'color'        => 'sometimes|required|string|max:255',
+            'user_id'      => 'nullable|exists:users,id',
         ]);
 
         // ? Initial
@@ -126,68 +132,6 @@ class VehicleController extends Controller
     }
 
     /**
-     * Return vehicles for the currently logged in user, formatted for options.
-     */
-    public function userVehiclesOption(Request $request)
-    {
-        $params = $this->getParams($request);
-
-        $user = $request->user();
-
-        return $user->vehicles()
-            ->search($params["search"] ?? '')
-            ->filter(json_decode($params["filter"]))
-            ->get()
-            ->map(function ($vehicle) {
-                return [
-                    'label' => $vehicle->brand . ' [' . $vehicle->plate_number . ']',
-                    'value' => $vehicle->id,
-                    'vehicle' => $vehicle
-                ];
-            });
-    }
-
-    public function customerVehicles(Request $request)
-    {
-        $vehicles = $this->userVehiclesOption($request);
-        return response()->json($vehicles);
-    }
-
-    /**
-     * Update the specified vehicle by the authenticated user.
-     */
-   public function updateCustomerVehicle(Request $request, Vehicle $vehicle)
-{
-    $user = $request->user();
-
-    if ($vehicle->user_id !== $user->id) {
-        return response()->json(['message' => 'Unauthorized to update this vehicle.'], 403);
-    }
-
-    $validated = $request->validate([
-        'plate_number' => 'sometimes|required|string|max:255|unique:vehicles,plate_number,' . $vehicle->id,
-        'brand' => 'sometimes|required|string|max:255',
-        'series' => 'sometimes|required|string|max:255',
-        'year' => 'sometimes|required|integer|min:1900|max:' . (date('Y') + 1),
-        'color' => 'sometimes|required|string|max:255',
-    ]);
-
-    DB::beginTransaction();
-
-    try {
-        $vehicle->fill($validated);
-        $vehicle->save();
-        DB::commit();
-        return response()->json(['message' => 'Vehicle updated successfully', 'data' => $vehicle->fresh()]);
-    } catch (\Throwable $th) {
-        DB::rollBack();
-        return response()->json(['error' => $th->getMessage()], 500);
-    }
-}
-
-
-
-    /**
      * Return all vehicles, formatted for options.
      */
     public function allVehiclesOption(Request $request)
@@ -203,7 +147,7 @@ class VehicleController extends Controller
                 return [
                     'label' => $vehicle->series . ' [' . $vehicle->plate_number . ']',
                     'value' => $vehicle->id,
-                    'user' => $vehicle->user
+                    'user'  => $vehicle->user
                 ];
             });
 

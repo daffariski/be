@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Service;
+use App\Models\ServiceQueue;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Helpers\LightControllerHelper;
@@ -21,15 +22,15 @@ class ServiceController extends Controller
         $params = $this->getParams($request);
 
         // ? Begin
-        $query = Service::query()->with(['customer', 'mechanic.user', 'admin', 'queue', 'details', 'vehicle'])
-            ->search($params["search"] || '')
+        $query = Service::query()->with(['customer.user', 'mechanic.user', 'admin', 'queue', 'details', 'vehicle'])
+            ->search($params["search"] ?? '')
             ->filter(json_decode($params["filter"]))
             ->orderBy($params["sortBy"], $params["sortDirection"])
             ->selectableColumns()
             ->paginate($params["paginate"]);
 
         // ? Response
-        $this->responseData($query->all(), $query->total());
+        return $this->responseData($query->all(), $query->total());
     }
 
     // =============================================>
@@ -53,8 +54,8 @@ class ServiceController extends Controller
             'admin_id' => 'nullable|exists:admins,id',
             'queue_id' => 'nullable|exists:queues,id',
             'description' => 'nullable|string',
-            'status' => 'required|in:waiting,process,done,cancelled',
-            'approved_at' => 'nullable|date',
+            'status' => 'nullable|in:waiting,process,done,cancelled',
+            'add_to_queue' => 'nullable|boolean', // Whether to add to queue (true for fresh, false for old service)
         ];
 
         // Conditionally make fields required
@@ -92,28 +93,60 @@ class ServiceController extends Controller
             }
 
             // Create the Service
-            $service = new \App\Models\Service();
-            $service->fill($request->only('description', 'status', 'admin_id',));
+            $service = new Service();
+            $service->fill($request->only('description', 'admin_id'));
             $service->customer_id = $customerId;
             $service->vehicle_id = $vehicleId;
+            $service->status = $request->input('status', 'waiting');
 
             // If customer_id was not provided, store the customer_name from the request
             if (!$request->has('customer_id')) {
                 $service->customer_name = $customerName;
             }
 
-            $service->save();
+            // Check if customer already has active service today (prevent monopolizing queue)
+            if ($customerId && Service::customerHasActiveServiceToday($customerId)) {
+                DB::rollBack();
+                return response()->json([
+                    'message' => 'Customer already has an active service today. Please complete current service first.',
+                ], 422);
+            }
 
-            // Update last_serviced_at for the vehicle
-            $vehicle = \App\Models\Vehicle::findOrFail($vehicleId);
-            $vehicle->last_serviced_at = now();
-            $vehicle->save();
+            // Determine if service should be added to queue
+            $addToQueue = $request->input('add_to_queue', true); // Default true for fresh services
+
+            if ($addToQueue && $service->status === 'waiting') {
+                // Set queue fields
+                $service->queue_date = $request->input('queue_date', today());
+                $service->queue_priority = $request->input('queue_priority', 999);
+                $service->queued_at = now();
+
+                $service->save();
+
+                // Create queue entry
+                $queueNumber = ServiceQueue::getNextQueueNumber($service->queue_date);
+                ServiceQueue::create([
+                    'service_id' => $service->id,
+                    'queue_number' => $queueNumber,
+                    'queue_date' => $service->queue_date,
+                ]);
+            } else {
+                // Old service or non-queued service
+                $service->save();
+            }
+
+            // Update last_serviced_at for the vehicle (only if service is done)
+            if ($service->status === 'done') {
+                $vehicle = \App\Models\Vehicle::findOrFail($vehicleId);
+                $vehicle->last_serviced_at = now();
+                $vehicle->save();
+            }
 
             DB::commit();
-            $this->responseSaved($service->load(['customer.user', 'vehicle'])->toArray());
+            return $this->responseSaved($service->load(['customer.user', 'vehicle', 'queue'])->toArray());
         } catch (\Throwable $th) {
             DB::rollBack();
-            return response()->json(['err' => $th], 201);;
+            return $this->responseError($th, 'Create Service');
         }
     }
 
@@ -123,12 +156,12 @@ class ServiceController extends Controller
     public function show(string $id)
     {
         // ? Initial
-        $service = Service::query()->with(['customer', 'mechanic', 'admin', 'queue', 'details'])
+        $service = Service::query()->with(['customer.user', 'mechanic.user', 'admin', 'queue', 'details', 'vehicle'])
             ->selectableColumns()
             ->findOrFail($id);
 
-        // ? Response
-        $this->responseData($service->toArray());
+        // ? Response - wrap single resource in an array to match list endpoints
+        return $this->responseData([$service->toArray()]);
     }
 
     // ============================================>
@@ -219,6 +252,37 @@ class ServiceController extends Controller
         $this->responseSaved($service->toArray());
     }
 
+    // ===============================================>
+    // ## Start Service (assign mechanic + set to process)
+    // ===============================================>
+    public function start(Request $request, Service $service)
+    {
+        $this->validation($request->all(), [
+            'mechanic_id' => 'required|exists:mechanics,id',
+        ]);
+
+        if ($service->status !== 'waiting') {
+            return response()->json([
+                'message' => 'Only waiting services can be started',
+                'current_status' => $service->status,
+            ], 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            $service->mechanic_id = $request->mechanic_id;
+            $service->status = 'process';
+            $service->started_at = now();
+            $service->save();
+
+            DB::commit();
+            return $this->responseSaved($service->fresh(['mechanic.user', 'customer.user', 'vehicle', 'queue'])->toArray());
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            return $this->responseError($th, 'Start Service');
+        }
+    }
+
     /**
      * Return services for the currently logged in user.
      */
@@ -227,8 +291,14 @@ class ServiceController extends Controller
         $params = $this->getParams($request);
 
         $user = $request->user();
+        $customer = $user->customer;
 
-        $query = $user->services()->with(['customer', 'mechanic.user', 'admin', 'queue', 'details', 'vehicle'])
+        if (!$customer) {
+            return response()->json(['message' => 'Customer profile not found.'], 404);
+        }
+
+        $query = Service::where('customer_id', $customer->id)
+            ->with(['customer.user', 'mechanic.user', 'admin', 'queue', 'details', 'vehicle'])
             ->search($params["search"] ?? '')
             ->filter(json_decode($params["filter"]))
             ->orderBy($params["sortBy"], $params["sortDirection"])
@@ -251,14 +321,13 @@ class ServiceController extends Controller
 
         // Define validation rules
         $rules = [
-            'vehicle_id' => 'nullable|exists:vehicles,id',
+            'vehicle_id'           => 'nullable|exists:vehicles,id',
             'vehicle_plate_number' => 'nullable|string|max:255|unique:vehicles,plate_number',
-            'vehicle_brand' => 'nullable|string|max:255',
-            'vehicle_series' => 'nullable|string|max:255',
-            'vehicle_year' => 'nullable|integer|min:1900|max:' . (date('Y') + 1),
-            'vehicle_color' => 'nullable|string|max:255',
-            'description' => 'nullable|string',
-            'preferred_datetime' => 'required|date|after:now',
+            'vehicle_brand'        => 'nullable|string|max:255',
+            'vehicle_series'       => 'nullable|string|max:255',
+            'vehicle_year'         => 'nullable|integer|min:1900|max:' . (date('Y') + 1),
+            'vehicle_color'        => 'nullable|string|max:255',
+            'description'          => 'required|string',
         ];
 
         // Conditionally make fields required if vehicle_id is not provided
@@ -289,25 +358,47 @@ class ServiceController extends Controller
                 $vehicleId = $vehicle->id;
             }
 
+            // Check if customer already has active service today
+            if (Service::where('customer_id', $customer->id)
+                ->where('queue_date', today())
+                ->whereIn('status', ['waiting', 'process'])
+                ->exists()
+            ) {
+                DB::rollBack();
+                return response()->json([
+                    'message' => 'Anda sudah memiliki servis aktif hari ini. Harap tunggu hingga selesai.',
+                ], 422);
+            }
+
             // Create the Service
-            $service = new \App\Models\Service();
+            $service = new Service();
             $service->fill($request->only('description'));
             $service->customer_id = $customer->id;
             $service->vehicle_id = $vehicleId;
             $service->status = 'waiting';
-            $service->preferred_datetime = Carbon::parse($request->preferred_datetime)->setTimezone('UTC');
+            $service->queue_date = today(); // Set queue for today
+            $service->queued_at = now();
             $service->save();
 
-            // Update last_serviced_at for the vehicle
-            $vehicle = \App\Models\Vehicle::findOrFail($vehicleId);
-            $vehicle->last_serviced_at = now();
-            $vehicle->save();
+            // Create queue entry
+            $lastQueue = ServiceQueue::whereDate('queue_date', today())
+                ->orderBy('queue_number', 'desc')
+                ->first();
+
+            $nextQueueNumber = $lastQueue ? $lastQueue->queue_number + 1 : 1;
+
+            ServiceQueue::create([
+                'service_id' => $service->id,
+                'queue_number' => $nextQueueNumber,
+                'queue_date' => today(),
+                'status' => 'waiting',
+            ]);
 
             DB::commit();
-            $this->responseSaved($service->load(['customer.user', 'vehicle'])->toArray());
+            return $this->responseSaved($service->load(['customer.user', 'vehicle', 'queue'])->toArray());
         } catch (\Throwable $th) {
             DB::rollBack();
-            $this->responseError($th, 'Create Customer Service');
+            return $this->responseError($th, 'Create Customer Service');
         }
     }
 
@@ -332,14 +423,14 @@ class ServiceController extends Controller
         try {
             // Generate queue number for today
             $today = now()->toDateString();
-            $lastQueue = \App\Models\Queue::whereDate('date', $today)
+            $lastQueue = ServiceQueue::whereDate('date', $today)
                 ->orderByDesc('queue_number')
                 ->first();
 
             $nextNumber = $lastQueue ? $lastQueue->queue_number + 1 : 1;
 
             // Create new queue entry
-            $queue = \App\Models\Queue::create([
+            $queue = ServiceQueue::create([
                 'queue_number' => $nextNumber,
                 'date' => $today,
                 'status' => 'waiting',

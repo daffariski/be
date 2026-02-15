@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Queue;
 use Illuminate\Http\Request;
 
-class QueueController extends Controller
+class ServiceQueueController extends Controller
 {
     /**
      * Display a listing of the resource.
