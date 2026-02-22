@@ -122,6 +122,28 @@ class CustomerController extends Controller
     /**
      * Remove the specified resource from storage.
      */
+    /**
+     * Return all customers as options for dropdowns.
+     */
+    public function getCustomerOptions(Request $request)
+    {
+        $customers = \App\Models\Customer::query()
+            ->with('user')
+            ->whereHas('user')
+            ->get()
+            ->map(function ($customer) {
+                $name = $customer->user->name ?? 'Unknown';
+                $phone = $customer->phone ? ' — ' . $customer->phone : '';
+                return [
+                    'label'   => $name . $phone,
+                    'value'   => $customer->id,
+                    'user_id' => $customer->user_id,
+                ];
+            });
+
+        return response()->json($customers);
+    }
+
     public function destroy(string $id)
     {
         // ? Initial

@@ -9,6 +9,7 @@ use App\Models\ShopSession;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Helpers\LightControllerHelper;
+use App\Models\Product;
 
 /**
  * Handles the service workflow operations:
@@ -68,8 +69,8 @@ class ServiceWorkflowController extends Controller
         // Validate
         $this->validation($request->all(), [
             'product_id' => 'required|exists:products,id',
-            'quantity' => 'required|integer|min:1',
-            'price' => 'required|numeric|min:0',
+            'quantity'   => 'required|integer|min:1',
+            // 'price'      => 'required|numeric|min:0',
         ]);
 
         DB::beginTransaction();
@@ -84,16 +85,19 @@ class ServiceWorkflowController extends Controller
                 ], 422);
             }
 
+            // Get Product price
+            $product = Product::findOrFail($request->product_id);
+
             // Calculate total
-            $total = $request->quantity * $request->price;
+            $total = $request->quantity * $product->price;
 
             // Create service detail
             $detail = ServiceDetail::create([
                 'service_id' => $service->id,
                 'product_id' => $request->product_id,
-                'quantity' => $request->quantity,
-                'price' => $request->price,
-                'total' => $total,
+                'quantity'   => $request->quantity,
+                'price'      => $product->price,
+                'total'      => $total,
             ]);
 
             // Update service price (sum of all details)
@@ -174,21 +178,81 @@ class ServiceWorkflowController extends Controller
     // ===============================================>
     public function getMechanicActiveServices(Request $request)
     {
-        $mechanicId = $request->user()->mechanic->id ?? null;
+        $mechanic = $request->user()->mechanic;
 
-        if (!$mechanicId) {
-            return response()->json([
-                'message' => 'User is not a mechanic',
-            ], 403);
+        if (!$mechanic) {
+            return response()->json(['message' => 'User is not a mechanic'], 403);
         }
 
-        $services = Service::where('mechanic_id', $mechanicId)
+        $services = Service::where('mechanic_id', $mechanic->id)
             ->where('status', 'process')
-            ->with(['vehicle', 'customer', 'queue', 'details.product'])
-            ->orderBy('updated_at', 'desc')
+            ->with(['vehicle', 'customer.user', 'queue', 'details.product'])
+            ->orderBy('created_at', 'asc')
             ->get();
 
         return $this->responseData($services->toArray(), $services->count());
+    }
+
+    // ===============================================>
+    // ## Get Mechanic's Completed Services (history)
+    // ===============================================>
+    public function getMechanicCompletedServices(Request $request)
+    {
+        $mechanic = $request->user()->mechanic;
+
+        if (!$mechanic) {
+            return response()->json(['message' => 'User is not a mechanic'], 403);
+        }
+
+        $services = Service::where('mechanic_id', $mechanic->id)
+            ->where('status', 'done')
+            ->with(['vehicle', 'customer.user', 'queue', 'details.product'])
+            ->orderBy('updated_at', 'desc')
+            ->limit(20)
+            ->get();
+
+        return $this->responseData($services->toArray(), $services->count());
+    }
+
+    // ===============================================>
+    // ## Finish Service - Mechanic marks work as done
+    // ===============================================>
+    public function finishService(Request $request, Service $service)
+    {
+        $mechanic = $request->user()->mechanic;
+
+        if (!$mechanic || $service->mechanic_id !== $mechanic->id) {
+            return response()->json(['message' => 'Tidak diizinkan menyelesaikan servis ini'], 403);
+        }
+
+        if ($service->status !== 'process') {
+            return response()->json([
+                'message' => 'Hanya servis yang sedang dikerjakan yang bisa diselesaikan',
+                'current_status' => $service->status,
+            ], 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            $service->status = 'done';
+            $service->save();
+
+            // Update vehicle last serviced
+            if ($service->vehicle) {
+                $service->vehicle->last_serviced_at = now();
+                $service->vehicle->save();
+            }
+
+            DB::commit();
+
+            return $this->responseSaved(
+                $service->fresh(['mechanic.user', 'vehicle', 'customer.user', 'details.product', 'queue'])->toArray(),
+                'Servis berhasil diselesaikan'
+            );
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            return $this->responseError($th, 'Finish Service');
+        }
     }
 
     // ===============================================>

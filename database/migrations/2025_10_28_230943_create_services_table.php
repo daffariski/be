@@ -29,7 +29,8 @@ return new class extends Migration
             $table->enum('status', ['waiting', 'process', 'done', 'cancelled'])->default('waiting');
 
             // Payment fields (moved from separate table for simplicity)
-            $table->unsignedBigInteger('price')->default(0)->comment('Total service cost');
+            $table->unsignedBigInteger('service_fee')->default(0)->comment('service fee without products');
+            $table->unsignedBigInteger('total_price')->default(0)->comment('Total service cost');
             $table->string('payment_method')->nullable()->comment('cash, qris, transfer, etc');
             $table->string('payment_proof')->nullable()->comment('File path for payment proof (cashless)');
             $table->enum('payment_status', ['unpaid', 'paid'])->default('unpaid');

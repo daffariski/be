@@ -15,21 +15,16 @@ Route::middleware(['auth:sanctum', 'role:mechanic'])->prefix('mechanic')->group(
     // ===============================================
     // Service Management
     // ===============================================
-    // View assigned services
+    // View assigned services (in process)
     Route::get('services', [ServiceWorkflowController::class, 'getMechanicActiveServices']);
+    // Completed services history
+    Route::get('services/history', [ServiceWorkflowController::class, 'getMechanicCompletedServices']);
+    // Finish a service (mark done)
+    Route::post('services/{service}/finish', [ServiceWorkflowController::class, 'finishService']);
 
     // ===============================================
     // Service Details (Parts Used)
     // ===============================================
-    // Add/remove service details (parts used)
     Route::post('services/{service}/details', [ServiceWorkflowController::class, 'addServiceDetail']);
     Route::delete('services/{service}/details/{detail}', [ServiceWorkflowController::class, 'removeServiceDetail']);
-
-    // ===============================================
-    // Legacy Endpoints
-    // ===============================================
-    // Legacy endpoints (if still needed)
-    Route::get('assignments', [MechanicController::class, 'assignments']);
-    Route::get('queues', [MechanicController::class, 'queues']);
-    Route::post('queues/{id}', [MechanicController::class, 'updateQueue']);
 });

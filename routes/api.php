@@ -30,6 +30,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('options')->group(function () {
         Route::get('mechanic', [\App\Http\Controllers\MechanicController::class, 'getMechanicOptions']);
         Route::get('vehicle', [\App\Http\Controllers\VehicleController::class, 'allVehiclesOption']);
+        Route::get('product', [\App\Http\Controllers\ProductController::class, 'getProductOptions']);
+        Route::get('customer', [\App\Http\Controllers\CustomerController::class, 'getCustomerOptions']);
     });
 });
 

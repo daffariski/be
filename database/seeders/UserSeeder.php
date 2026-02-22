@@ -19,11 +19,11 @@ class UserSeeder extends Seeder
         ]);
         User::factory()->count(1)->create([
             'role'  => 'customer',
-            'email' => 'customer@email.com'
+            'email' => 'kustomer@email.com'
         ]);
         User::factory()->count(1)->create([
             'role'  => 'mechanic',
-            'email' => 'mechanic@email.com'
+            'email' => 'mekanik@email.com'
         ]);
     }
 }

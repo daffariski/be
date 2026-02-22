@@ -130,7 +130,7 @@ class QueueManagementController extends Controller
 
             // Create new queue entry for new date
             $nextQueueNumber = ServiceQueue::getNextQueueNumber($newDate);
-            
+
             ServiceQueue::create([
                 'service_id' => $service->id,
                 'queue_number' => $nextQueueNumber,
@@ -181,7 +181,7 @@ class QueueManagementController extends Controller
         }
 
         $queue = $service->queue;
-        
+
         // Count how many queues are ahead
         $queuesAhead = ServiceQueue::today()
             ->where('queue_number', '<', $queue->queue_number)
@@ -220,6 +220,9 @@ class QueueManagementController extends Controller
         $completedCount = Service::where('status', 'done')
             ->where('queue_date', today())
             ->count();
+        $cancelledCount = Service::where('status', 'cancelled')
+            ->where('queue_date', today())
+            ->count();
 
         // Get current queue being worked on
         $currentQueue = ServiceQueue::today()
@@ -234,6 +237,7 @@ class QueueManagementController extends Controller
             'waiting' => $waitingCount,
             'in_process' => $processCount,
             'completed' => $completedCount,
+            'cancelled' => $cancelledCount,
             'current_queue' => $currentQueue ? [
                 'queue_number' => $currentQueue->queue_number,
                 'vehicle' => $currentQueue->service->vehicle->plate_number,

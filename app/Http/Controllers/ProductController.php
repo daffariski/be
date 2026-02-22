@@ -137,4 +137,27 @@ class ProductController extends Controller
         // ? final
         return $this->responseData([], null, 'Product deleted successfully');
     }
+
+    // ================================================>
+    // ## Return products as select options
+    // ================================================>
+    public function getProductOptions(Request $request)
+    {
+        $search = $request->get('search', '');
+
+        $products = Product::query()
+            ->when($search, fn($q) => $q->search($search))
+            ->orderBy('name')
+            ->get(['id', 'name', 'price', 'stock', 'uom']);
+
+        return response()->json(
+            $products->map(fn($p) => [
+                'label' => $p->name . ' — Rp ' . number_format($p->price, 0, ',', '.') . ' / ' . $p->uom,
+                'value' => $p->id,
+                'price' => $p->price,
+                'stock' => $p->stock,
+                'uom'   => $p->uom,
+            ])
+        );
+    }
 }

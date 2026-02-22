@@ -138,8 +138,17 @@ class VehicleController extends Controller
     {
         $params = $this->getParams($request);
 
-        $vehicles = Vehicle::query()
-            ->with('user')
+        $query = Vehicle::query()->with('user');
+
+        // Filter by customer_id if provided (returns only that customer's vehicles)
+        if ($request->filled('customer_id')) {
+            $customer = \App\Models\Customer::find($request->customer_id);
+            if ($customer) {
+                $query->where('user_id', $customer->user_id);
+            }
+        }
+
+        $vehicles = $query
             ->search($params["search"] ?? '')
             ->filter(json_decode($params["filter"]))
             ->get()
