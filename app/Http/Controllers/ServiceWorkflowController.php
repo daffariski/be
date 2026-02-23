@@ -101,7 +101,7 @@ class ServiceWorkflowController extends Controller
             ]);
 
             // Update service price (sum of all details)
-            $service->price = $service->details()->sum('total');
+            $service->total_price = $service->details()->sum('total');
             $service->save();
 
             DB::commit();
