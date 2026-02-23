@@ -21,7 +21,8 @@ class Service extends Model
         'queue_date',
         'queue_priority',
         'queued_at',
-        'price',
+        'service_fee',
+        'total_price',
         'payment_method',
         'payment_proof',
         'payment_status',
@@ -39,7 +40,8 @@ class Service extends Model
         'queue_date',
         'queue_priority',
         'queued_at',
-        'price',
+        'service_fee',
+        'total_price',
         'payment_method',
         'payment_status',
         'created_at',
@@ -55,7 +57,8 @@ class Service extends Model
     protected $casts = [
         'queue_date' => 'date',
         'queued_at'  => 'datetime',
-        'price'      => 'integer',
+        'service_fee' => 'integer',
+        'total_price' => 'integer',
     ];
 
     public function customer()
