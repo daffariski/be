@@ -277,7 +277,7 @@ class ServiceWorkflowController extends Controller
             $detail->delete();
 
             // Recalculate service price
-            $service->price = $service->details()->sum('total');
+            $service->total_price = $service->details()->sum('total');
             $service->save();
 
             DB::commit();
