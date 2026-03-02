@@ -123,8 +123,9 @@ class ServiceWorkflowController extends Controller
     {
         // Validate
         $this->validation($request->all(), [
+            'service_fee'    => 'required|numeric|min:0',
             'payment_method' => 'required|in:cash,qris,transfer,debit,credit',
-            'payment_proof' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
+            'payment_proof'  => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
         ]);
 
         DB::beginTransaction();
@@ -132,12 +133,12 @@ class ServiceWorkflowController extends Controller
             $service = Service::findOrFail($serviceId);
 
             // Check if service is in process
-            if ($service->status !== 'process') {
-                return response()->json([
-                    'message' => 'Can only complete services in process',
-                    'current_status' => $service->status,
-                ], 422);
-            }
+            // if ($service->status !== 'process') {
+            //     return response()->json([
+            //         'message' => 'Can only complete services in process',
+            //         'current_status' => $service->status,
+            //     ], 422);
+            // }
 
             // Handle payment proof upload
             $paymentProofPath = null;
@@ -151,6 +152,7 @@ class ServiceWorkflowController extends Controller
             // Update service
             $service->update([
                 'status' => 'done',
+                'service_fee' => $request->service_fee,
                 'payment_method' => $request->payment_method,
                 'payment_proof' => $paymentProofPath,
                 'payment_status' => 'paid',
@@ -287,5 +289,12 @@ class ServiceWorkflowController extends Controller
             DB::rollBack();
             return $this->responseError($th, 'Remove Service Detail');
         }
+    }
+
+    public function generateReceipt(Service $service)
+    {
+        $service->load(['customer.user', 'vehicle', 'mechanic.user', 'details.product', 'queue']);
+
+        return $this->responseSaved($service->toArray(), 'Receipt data retrieved successfully');
     }
 }

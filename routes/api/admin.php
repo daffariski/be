@@ -47,6 +47,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(functi
     Route::post('/services/{service}/cancel', [ServiceController::class, 'cancel']);
     Route::post('/services/{service}/complete', [ServiceWorkflowController::class, 'completeService']);
     Route::post('/services/{service}/details', [ServiceWorkflowController::class, 'addServiceDetail']);
+    Route::get('/services/{service}/receipt', [ServiceWorkflowController::class, 'generateReceipt']);
     Route::delete('/services/{service}/details/{detail}', [ServiceWorkflowController::class, 'removeServiceDetail']);
 
     // 🆕 Queue Management
