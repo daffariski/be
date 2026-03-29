@@ -101,7 +101,8 @@ class ServiceWorkflowController extends Controller
             ]);
 
             // Update service price (sum of all details)
-            $service->total_price = $service->details()->sum('total');
+            // $service->total_price = $service->details()->sum('total');
+            $service->product_fee = $service->details()->sum('total');
             $service->save();
 
             DB::commit();
@@ -149,10 +150,14 @@ class ServiceWorkflowController extends Controller
                 );
             }
 
+            // count total price (service fee + product fee)
+            $totalPrice = $request->service_fee + $service->product_fee;
+
             // Update service
             $service->update([
                 'status' => 'done',
                 'service_fee' => $request->service_fee,
+                'total_price' => $totalPrice,
                 'payment_method' => $request->payment_method,
                 'payment_proof' => $paymentProofPath,
                 'payment_status' => 'paid',
@@ -162,6 +167,14 @@ class ServiceWorkflowController extends Controller
             $service->vehicle->update([
                 'last_serviced_at' => now(),
             ]);
+
+            // update shop session stats
+            $session = ShopSession::getTodaySession();
+            if ($session) {
+                $session->services_completed += 1;
+                $session->gross_revenue += $totalPrice;
+                $session->save();
+            }
 
             DB::commit();
 
@@ -279,7 +292,8 @@ class ServiceWorkflowController extends Controller
             $detail->delete();
 
             // Recalculate service price
-            $service->total_price = $service->details()->sum('total');
+            // $service->total_price = $service->details()->sum('total');
+            $service->product_fee = $service->details()->sum('total');
             $service->save();
 
             DB::commit();

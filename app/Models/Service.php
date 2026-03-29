@@ -22,10 +22,14 @@ class Service extends Model
         'queue_priority',
         'queued_at',
         'service_fee',
+        'product_fee',
         'total_price',
         'payment_method',
         'payment_proof',
         'payment_status',
+        'started_at',
+        'finished_at',
+        'cancelled_at'
     ];
 
     protected $selectable = [
@@ -41,11 +45,13 @@ class Service extends Model
         'queue_priority',
         'queued_at',
         'service_fee',
+        'product_fee',
         'total_price',
         'payment_method',
         'payment_status',
         'created_at',
         'updated_at',
+        'cancelled_at',
         // 'service_queues.queue_number',
         // 'service_queues.queue_date',
     ];
@@ -58,6 +64,7 @@ class Service extends Model
         'queue_date' => 'date',
         'queued_at'  => 'datetime',
         'service_fee' => 'integer',
+        'product_fee' => 'integer',
         'total_price' => 'integer',
     ];
 

@@ -475,9 +475,16 @@ class ServiceController extends Controller
             // ]);
 
             $service->status = 'cancelled';
-            $service->cancel_reason = $validated['reason'] ?? null;
+            // $service->cancel_reason = $validated['reason'] ?? null;
             $service->cancelled_at = now();
             $service->save();
+
+            // update shop session stats
+            $session = ShopSession::getTodaySession();
+            if ($session) {
+                $session->services_cancelled += 1;
+                $session->save();
+            }
 
             // ServiceStatusLog::create([
             //     'service_id' => $service->id,

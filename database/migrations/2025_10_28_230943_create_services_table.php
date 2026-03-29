@@ -30,6 +30,7 @@ return new class extends Migration
 
             // Payment fields (moved from separate table for simplicity)
             $table->unsignedBigInteger('service_fee')->default(0)->comment('service fee without products');
+            $table->unsignedBigInteger('product_fee')->default(0)->comment('fee for products used');
             $table->unsignedBigInteger('total_price')->default(0)->comment('Total service cost');
             $table->string('payment_method')->nullable()->comment('cash, qris, transfer, etc');
             $table->string('payment_proof')->nullable()->comment('File path for payment proof (cashless)');
@@ -37,6 +38,8 @@ return new class extends Migration
 
             $table->timestamp('started_at')->nullable()->comment('When mechanic started working on this service');
             $table->timestamp('finished_at')->nullable()->comment('When mechanic finished working on this service');
+            // $table->string('cancel_reason')->nullable()->comment('Reason for cancellation, if status is cancelled');
+            $table->timestamp('cancelled_at')->nullable()->comment('When service was cancelled');
             $table->timestamps();
         });
     }

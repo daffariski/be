@@ -108,7 +108,7 @@ trait LightControllerHelper
         \Illuminate\Http\UploadedFile $file,  //? file
         string $folder = ''                   //? storage folder name
     ) {
-        return Storage::disk('private')->put($folder, $file);
+        return Storage::disk('local')->put($folder, $file);
     }
 
     // =========================>
@@ -117,8 +117,8 @@ trait LightControllerHelper
     public function deleteFile(
         string $path  //? path to file
     ) {
-        if (Storage::disk('private')->exists($path)) {
-            Storage::disk('private')->delete($path);
+        if (Storage::disk('local')->exists($path)) {
+            Storage::disk('local')->delete($path);
         }
     }
 
@@ -128,9 +128,9 @@ trait LightControllerHelper
     public function responseFile(
         string $path  //? path to file
     ) {
-        $file_path = Storage::disk('private') . $path;
+        $file_path = Storage::disk('local') . $path;
 
-        if (Storage::disk('private')->exists($path)) {
+        if (Storage::disk('local')->exists($path)) {
             return response()->file($file_path);
         }
 

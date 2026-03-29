@@ -147,7 +147,7 @@ class DashboardController extends Controller
             ->withSum(['services as revenue_today' => function ($q) {
                 $q->where('status', 'done')
                     ->where('queue_date', today());
-            }], 'price')
+            }], 'total_price')
             ->get();
 
         $data = $mechanics->map(function ($mechanic) {
@@ -234,7 +234,7 @@ class DashboardController extends Controller
                 ->count(),
             'gross_revenue' => Service::where('status', 'done')
                 ->where('created_at', '>=', $weekStart)
-                ->sum('price'),
+                ->sum('total_price'),
         ];
     }
 
@@ -242,7 +242,7 @@ class DashboardController extends Controller
     {
         return Service::where('status', 'done')
             ->where('queue_date', today())
-            ->selectRaw('SUM(price) as total, COUNT(*) as count')
+            ->selectRaw('SUM(total_price) as total, COUNT(*) as count')
             ->first()
             ->toArray();
     }
@@ -253,7 +253,7 @@ class DashboardController extends Controller
 
         return Service::where('status', 'done')
             ->where('created_at', '>=', $weekStart)
-            ->selectRaw('DATE(created_at) as date, SUM(price) as total, COUNT(*) as count')
+            ->selectRaw('DATE(created_at) as date, SUM(total_price) as total, COUNT(*) as count')
             ->groupBy('date')
             ->orderBy('date')
             ->get()
@@ -266,7 +266,7 @@ class DashboardController extends Controller
 
         return Service::where('status', 'done')
             ->where('created_at', '>=', $monthStart)
-            ->selectRaw('DATE(created_at) as date, SUM(price) as total, COUNT(*) as count')
+            ->selectRaw('DATE(created_at) as date, SUM(total_price) as total, COUNT(*) as count')
             ->groupBy('date')
             ->orderBy('date')
             ->get()
@@ -279,7 +279,7 @@ class DashboardController extends Controller
 
         return Service::where('status', 'done')
             ->where('created_at', '>=', $yearStart)
-            ->selectRaw('MONTH(created_at) as month, SUM(price) as total, COUNT(*) as count')
+            ->selectRaw('MONTH(created_at) as month, SUM(total_price) as total, COUNT(*) as count')
             ->groupBy('month')
             ->orderBy('month')
             ->get()
