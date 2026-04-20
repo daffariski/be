@@ -44,7 +44,7 @@ class ServiceController extends Controller
             'customer_name' => 'nullable|string|max:255',
 
             'vehicle_id' => 'nullable|exists:vehicles,id',
-            'vehicle_plate_number' => 'nullable|string|max:255|unique:vehicles,plate_number',
+            'vehicle_plate_number' => 'nullable|string|max:255',
             'vehicle_brand' => 'nullable|string|max:255',
             'vehicle_series' => 'nullable|string|max:255',
             'vehicle_year' => 'nullable|integer|min:1900|max:' . (date('Y') + 1),
@@ -81,20 +81,32 @@ class ServiceController extends Controller
 
             // Handle vehicle creation if vehicle_id is not provided
             if (!$request->has('vehicle_id')) {
-                $vehicle = \App\Models\Vehicle::create([
-                    'user_id' => null,
-                    'plate_number' => $request->vehicle_plate_number,
-                    'brand' => $request->vehicle_brand,
-                    'series' => $request->vehicle_series,
-                    'year' => $request->vehicle_year,
-                    'color' => $request->vehicle_color,
-                ]);
+                $vehicle = \App\Models\Vehicle::where('plate_number', $request->vehicle_plate_number)->first();
+                
+                if (!$vehicle) {
+                    $vehicle = \App\Models\Vehicle::create([
+                        'user_id' => null,
+                        'plate_number' => $request->vehicle_plate_number,
+                        'brand' => $request->vehicle_brand,
+                        'series' => $request->vehicle_series,
+                        'year' => $request->vehicle_year,
+                        'color' => $request->vehicle_color,
+                    ]);
+                } else {
+                    // Update vehicle details if provided
+                    $vehicle->update([
+                        'brand' => $request->vehicle_brand ?? $vehicle->brand,
+                        'series' => $request->vehicle_series ?? $vehicle->series,
+                        'year' => $request->vehicle_year ?? $vehicle->year,
+                        'color' => $request->vehicle_color ?? $vehicle->color,
+                    ]);
+                }
                 $vehicleId = $vehicle->id;
             }
 
             // Create the Service
             $service = new Service();
-            $service->fill($request->only('description', 'admin_id'));
+            $service->fill($request->only('description', 'admin_id', 'mechanic_id'));
             $service->customer_id = $customerId;
             $service->vehicle_id = $vehicleId;
             $service->status = $request->input('status', 'waiting');
@@ -113,7 +125,7 @@ class ServiceController extends Controller
             }
 
             // Determine if service should be added to queue
-            $addToQueue = $request->input('add_to_queue', true); // Default true for fresh services
+            $addToQueue = filter_var($request->input('add_to_queue', true), FILTER_VALIDATE_BOOLEAN);
 
             if ($addToQueue && $service->status === 'waiting') {
                 // Set queue fields
