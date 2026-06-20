@@ -24,8 +24,10 @@ class VehicleSeeder extends Seeder
 
         for ($i = 0; $i < 5; $i++) {
             $brand = fake()->randomElement(['Yamaha', 'Honda', 'Suzuki']);
+            $user = $users->random();
             Vehicle::create([
-                'user_id'      => $users->random()->id ?? null,
+                'user_id'      => $user->id ?? null,
+                'owner_name'   => $user->name,
                 'plate_number' => fake()->unique()->regexify('[A-Z]{3}[0-9]{3}[A-Z]{2}'),
                 'brand'        => $brand,
                 'series'       => fake()->randomElement($series[$brand]),

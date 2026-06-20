@@ -40,22 +40,22 @@ class ServiceController extends Controller
     {
         // Define validation rules
         $rules = [
-            'customer_id' => 'nullable|exists:customers,id',
+            'customer_id'   => 'nullable|exists:customers,id',
             'customer_name' => 'nullable|string|max:255',
 
-            'vehicle_id' => 'nullable|exists:vehicles,id',
+            'vehicle_id'           => 'nullable|exists:vehicles,id',
             'vehicle_plate_number' => 'nullable|string|max:255',
-            'vehicle_brand' => 'nullable|string|max:255',
-            'vehicle_series' => 'nullable|string|max:255',
-            'vehicle_year' => 'nullable|integer|min:1900|max:' . (date('Y') + 1),
-            'vehicle_color' => 'nullable|string|max:255',
+            'vehicle_brand'        => 'nullable|string|max:255',
+            'vehicle_series'       => 'nullable|string|max:255',
+            'vehicle_year'         => 'nullable|integer|min:1900|max:' . (date('Y') + 1),
+            'vehicle_color'        => 'nullable|string|max:255',
 
-            'mechanic_id' => 'nullable|exists:mechanics,id',
-            'admin_id' => 'nullable|exists:admins,id',
-            'queue_id' => 'nullable|exists:queues,id',
-            'description' => 'nullable|string',
-            'status' => 'nullable|in:waiting,process,done,cancelled',
-            'add_to_queue' => 'nullable|boolean', // Whether to add to queue (true for fresh, false for old service)
+            'mechanic_id'  => 'nullable|exists:mechanics,id',
+            'admin_id'     => 'nullable|exists:admins,id',
+            'queue_id'     => 'nullable|exists:queues,id',
+            'description'  => 'nullable|string',
+            'status'       => 'nullable|in:waiting,process,done,cancelled',
+            'add_to_queue' => 'nullable|boolean',                             // Whether to add to queue (true for fresh, false for old service)
         ];
 
         // Conditionally make fields required
@@ -65,10 +65,10 @@ class ServiceController extends Controller
 
         if (!$request->has('vehicle_id')) {
             $rules['vehicle_plate_number'] .= '|required';
-            $rules['vehicle_brand'] .= '|required';
-            $rules['vehicle_series'] .= '|required';
-            $rules['vehicle_year'] .= '|required';
-            $rules['vehicle_color'] .= '|required';
+            $rules['vehicle_brand']        .= '|required';
+            $rules['vehicle_series']       .= '|required';
+            $rules['vehicle_year']         .= '|required';
+            $rules['vehicle_color']        .= '|required';
         }
 
         $this->validation($request->all(), $rules);
@@ -82,7 +82,7 @@ class ServiceController extends Controller
             // Handle vehicle creation if vehicle_id is not provided
             if (!$request->has('vehicle_id')) {
                 $vehicle = \App\Models\Vehicle::where('plate_number', $request->vehicle_plate_number)->first();
-                
+
                 if (!$vehicle) {
                     $vehicle = \App\Models\Vehicle::create([
                         'user_id' => null,
@@ -101,6 +101,12 @@ class ServiceController extends Controller
                         'color' => $request->vehicle_color ?? $vehicle->color,
                     ]);
                 }
+
+                if (!$request->has('customer_id')) {
+                    $vehicle->owner_name = $customerName;
+                    $vehicle->save();
+                }
+
                 $vehicleId = $vehicle->id;
             }
 
@@ -333,13 +339,13 @@ class ServiceController extends Controller
 
         // Define validation rules
         $rules = [
-            'vehicle_id'           => 'nullable|exists:vehicles,id',
+            'vehicle_id' => 'nullable|exists:vehicles,id',
             'vehicle_plate_number' => 'nullable|string|max:255|unique:vehicles,plate_number',
-            'vehicle_brand'        => 'nullable|string|max:255',
-            'vehicle_series'       => 'nullable|string|max:255',
-            'vehicle_year'         => 'nullable|integer|min:1900|max:' . (date('Y') + 1),
-            'vehicle_color'        => 'nullable|string|max:255',
-            'description'          => 'required|string',
+            'vehicle_brand' => 'nullable|string|max:255',
+            'vehicle_series' => 'nullable|string|max:255',
+            'vehicle_year' => 'nullable|integer|min:1900|max:' . (date('Y') + 1),
+            'vehicle_color' => 'nullable|string|max:255',
+            'description' => 'required|string',
         ];
 
         // Conditionally make fields required if vehicle_id is not provided
@@ -371,10 +377,11 @@ class ServiceController extends Controller
             }
 
             // Check if customer already has active service today
-            if (Service::where('customer_id', $customer->id)
-                ->where('queue_date', today())
-                ->whereIn('status', ['waiting', 'process'])
-                ->exists()
+            if (
+                Service::where('customer_id', $customer->id)
+                    ->where('queue_date', today())
+                    ->whereIn('status', ['waiting', 'process'])
+                    ->exists()
             ) {
                 DB::rollBack();
                 return response()->json([

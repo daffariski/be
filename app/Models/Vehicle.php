@@ -12,6 +12,7 @@ class Vehicle extends Model
 
     protected $fillable = [
         'user_id',
+        'owner_name',
         'plate_number',
         'brand',
         'series',
@@ -22,6 +23,7 @@ class Vehicle extends Model
     protected $selectable = [
         'id',
         'user_id',
+        'owner_name',
         'plate_number',
         'brand',
         'series',

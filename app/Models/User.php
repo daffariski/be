@@ -24,6 +24,7 @@ class User extends Authenticatable
         'email',
         'password',
         'google_id',
+        'is_active',
         'role'
     ];
 
@@ -51,6 +52,7 @@ class User extends Authenticatable
         'name',
         'email',
         'role',
+        'is_active'
     ];
 
     public function customer()

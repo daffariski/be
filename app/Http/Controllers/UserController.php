@@ -137,9 +137,10 @@ class UserController extends Controller
             'phone'    => 'sometimes|required_if:role,customer|numeric',
             'address'  => 'sometimes|required_if:role,customer|string|max:500',
             'role'     => 'sometimes|required|in:admin,mechanic,customer',
+            'is_active' => 'sometimes|boolean',
         ]);
 
-        $user->fill($request->only(['name', 'email', 'role']));
+        $user->fill($request->only(['name', 'email', 'role', 'is_active']));
 
         if ($request->filled('password')) {
             $user->password = Hash::make($request->password);

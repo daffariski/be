@@ -75,8 +75,8 @@ class CustomerServiceController extends Controller
         try {
             $vehicleId = $request->vehicle_id;
 
-            // Handle vehicle creation if vehicle_id is not provided
-            if (!$request->has('vehicle_id')) {
+            // Handle vehicle creation if vehicle_id is not provided or is null 
+            if (!$request->has('vehicle_id') || $request->vehicle_id === null) {
                 $vehicle = \App\Models\Vehicle::create([
                     'user_id'      => $user->id,                        // Associate with the authenticated user
                     'plate_number' => $request->vehicle_plate_number,
@@ -85,6 +85,7 @@ class CustomerServiceController extends Controller
                     'year'         => $request->vehicle_year,
                     'color'        => $request->vehicle_color,
                 ]);
+                
                 $vehicleId = $vehicle->id;
             }
 

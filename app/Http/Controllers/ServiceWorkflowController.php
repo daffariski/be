@@ -258,6 +258,15 @@ class ServiceWorkflowController extends Controller
                 $service->vehicle->save();
             }
 
+            // update stock
+            foreach ($service->details as $detail) {
+                $product = $detail->product;
+                if ($product) {
+                    $product->stock -= $detail->quantity;
+                    $product->save();
+                }
+            }
+
             DB::commit();
 
             return $this->responseSaved(

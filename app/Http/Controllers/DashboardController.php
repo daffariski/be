@@ -242,8 +242,11 @@ class DashboardController extends Controller
     {
         return Service::where('status', 'done')
             ->where('queue_date', today())
-            ->selectRaw('SUM(total_price) as total, COUNT(*) as count')
-            ->first()
+            ->selectRaw('DATE(created_at) as date, SUM(total_price) as total, COUNT(*) as count')
+            // ->first()
+            ->groupBy('date')
+            ->orderBy('date')
+            ->get()
             ->toArray();
     }
 
